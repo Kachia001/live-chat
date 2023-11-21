@@ -1,3 +1,7 @@
 {
-  "extends": "next/core-web-vitals"
+  "extends": "eslint-config-retn0",
+  "rules": {
+    "linebreak-style": "off"
+    // Add your own rules if necessary
+  }
 }

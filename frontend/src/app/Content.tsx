@@ -1,9 +1,16 @@
 'use client';
+import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { type Socket, io } from 'socket.io-client';
-import Image from 'next/image';
 import janimal from './image/janimal.jpg';
 import myungttak from './image/myungttak.jpg';
+
+interface Message {
+  date: Date;
+  nickname: string;
+  text: string;
+}
+
 export function Content() {
   const socket = useRef<Socket>();
 
@@ -12,18 +19,46 @@ export function Content() {
     const client = io('http://localhost:8080');
 
     client.on('updateUserCount', (data) => {
-      console.log(1);
-      console.log(data);
-      setUserCount(data);
+      const count: number = data.count;
+      console.log('updateUserCount', count);
+    });
+
+    client.on('historyMessage', (data) => {
+      console.log('historyMessage', data);
+    });
+
+    client.on('newMessage', (data: Message) => {
+      console.log('newMessage', data);
     });
 
     client.on('connect', () => {
       console.log('connected');
+      client.emit('getHistoryMessage'); // 히스토리 요청
+      client.emit('getUserCount'); // 총 접속유저 요청
+
+      setTimeout(() => {
+        client.emit('message', {
+          text: 'hello',
+        });
+      }, 2000);
+    });
+
+    client.on('duplication', () => {
+      console.log('duplication');
+    });
+
+    client.on('disconnect', () => {
+      console.log('disconnect');
+    });
+
+    client.on('close', () => {
+      console.log('close');
     });
 
     socket.current = client;
     return () => {
       client.disconnect();
+      client.close();
     };
   }, []);
 
@@ -44,13 +79,13 @@ export function Content() {
         <div className="bg-slate-600 h-96 w-full overflow-scroll overflow-x-hidden flex flex-col p-5">
 
           <div className="text w-full h-fit flex">
-            <div alt='img' className="w-1/12 h-16 bg-slate-50" />
+            <div alt="img" className="w-1/12 h-16 bg-slate-50" />
             {/* <Image src={myungttak} alt='img' className="w-1/12 h-16" /> */}
             <span className="w-11/12 mx-10">aa</span>
           </div>
           <div className="text-end w-full h-fit flex">
             <span className="w-11/12 mx-10">aa</span>
-            <div alt='img' className="w-1/12 h-16 bg-slate-50" />
+            <div alt="img" className="w-1/12 h-16 bg-slate-50" />
             {/* <Image src={janimal} alt='img' className="w-1/12 h-16" /> */}
           </div>
         </div>
@@ -65,5 +100,5 @@ export function Content() {
 function Send() {
   return (
     <div>aa</div>
-  )
+  );
 }

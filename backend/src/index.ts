@@ -48,6 +48,21 @@ async function main() {
     });
 
     // 채팅 히스토리 요청
+    socket.on('getUserInformation', () => {
+      // 아이피 가져오기
+      const ip = socket.handshake.address;
+
+      // ip 를 hash 로 변환
+      const hash = ip
+        .split('.')
+        .map((v: string) => parseInt(v, 10).toString(16))
+        .join('');
+      socket.emit('userInformation', {
+        nickname: `guest_${hash}`,
+      });
+    });
+
+    // 채팅 히스토리 요청
     socket.on('getHistoryMessage', () => {
       socket.emit('historyMessage', messages);
     });

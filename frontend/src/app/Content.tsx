@@ -17,15 +17,17 @@ interface Message {
 export function Content() {
   const socket = useRef<Socket>();
   const [inputText, setInputText] = useState('');
-  const [userCount, setUserCount] = useState(null);
+  const [userCount, setUserCount] = useState<number>();
   const [history, setHistory] = useState([]);
-  const [newMessage, setNewMessage] = useState({});
+  const [newMessage, setNewMessage] = useState<Message[]>([]);
+  const [user, setUser] = useState();
   useEffect(() => {
     const client = io('http://localhost:8080');
 
     client.on('updateUserCount', (data) => {
       const count: number = data.count;
       console.log('updateUserCount', count);
+      setUserCount(count);
     });
 
     client.on('historyMessage', (data) => {
@@ -34,10 +36,14 @@ export function Content() {
     });
 
     client.on('newMessage', (data: Message) => {
-      console.log('newMessage', data);
-      setNewMessage(data);
+      setNewMessage((newData) => {
+        return [...newData, data];
+      });
     });
-
+    client.on('usersInformation', (data) => {
+      const userNickName = data[0].nickname;
+      setUser(userNickName);
+    });
     client.on('connect', () => {
       console.log('connected');
       client.emit('getHistoryMessage'); // 히스토리 요청
@@ -63,6 +69,7 @@ export function Content() {
     });
 
     socket.current = client;
+    socket.current.emit('getUsersInformation');
     return () => {
       client.disconnect();
       client.close();
@@ -79,14 +86,15 @@ export function Content() {
       </div>
 
       <div className="flex flex-col items-center p-10">
-        <div className="bg-slate-600 h-96 w-full overflow-scroll overflow-x-hidden flex flex-col p-5">
-          {history.map((data) => {
-            <OtherText />
+        <div id="screen" className="bg-slate-600 h-96 w-full overflow-scroll overflow-x-hidden flex flex-col p-5">
+          {history.map((data: Message, i) => {
+            if (data.nickname === user) { return (<MyText data={data} key={i} />); }
+            else { return (<OtherText key={i} data={data} />); }
           })}
-
-          <OtherText />
-          <MyText />
-
+          { newMessage.map((data, i) => {
+            if (data.nickname === user) { return (<MyText data={data} key={i} />); }
+            else { return (<OtherText key={i} data={data} />); }
+          })}
         </div>
         <div className="w-full flex h-20">
           <textarea
@@ -106,6 +114,11 @@ export function Content() {
               if (socket.current) {
                 socket.current.emit('message', { text: inputText });
                 setInputText('');
+                setTimeout(() => {
+                  if (document.getElementById('screen') !== null) {
+                    document.getElementById('screen').scrollTop = document.getElementById('screen').scrollHeight;
+                  }
+                }, 10);
               }
             }}
           >

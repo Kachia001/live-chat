@@ -75,7 +75,7 @@ async function main() {
           nickname: `guest_${hash}`,
         };
       });
-      io.emit('usersInformation', users);
+      socket.emit('usersInformation', users);
     });
 
     // 채팅 히스토리 요청

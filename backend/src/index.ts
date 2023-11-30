@@ -1,6 +1,5 @@
 import http from 'http';
 import { Server } from 'socket.io';
-/*새로운 사용자 접속 시, 접속 인원 알려주기 */
 
 interface Message {
   date: Date;
@@ -34,11 +33,9 @@ async function main() {
       setTimeout(() => client.disconnect(), 3000);
     }
 
-    console.log('a user connected');
-
     // 유저 접속 수 업데이트
     const count = io.sockets.sockets.size;
-    socket.broadcast.emit('updateUserCount', {
+    io.emit('updateUserCount', {
       count,
     });
 
@@ -61,6 +58,24 @@ async function main() {
       socket.emit('userInformation', {
         nickname: `guest_${hash}`,
       });
+    });
+
+    // 유저들에 대한 정보 요청
+    socket.on('getUsersInformation', () => {
+      const users = Array.from(io.sockets.sockets.values()).map((v) => {
+        const ip = v.handshake.address;
+
+        // ip 를 hash 로 변환
+        const hash = ip
+          .split('.')
+          .map((v: string) => parseInt(v, 10).toString(16))
+          .join('');
+
+        return {
+          nickname: `guest_${hash}`,
+        };
+      });
+      io.emit('usersInformation', users);
     });
 
     // 채팅 히스토리 요청

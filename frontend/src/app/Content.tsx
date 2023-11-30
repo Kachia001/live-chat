@@ -1,9 +1,12 @@
 'use client';
+import { text } from 'stream/consumers';
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { type Socket, io } from 'socket.io-client';
 import janimal from './image/janimal.jpg';
 import myungttak from './image/myungttak.jpg';
+import MyText from './mytext';
+import OtherText from './othertext';
 
 interface Message {
   date: Date;
@@ -13,8 +16,10 @@ interface Message {
 
 export function Content() {
   const socket = useRef<Socket>();
-
+  const [inputText, setInputText] = useState('');
   const [userCount, setUserCount] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [newMessage, setNewMessage] = useState({});
   useEffect(() => {
     const client = io('http://localhost:8080');
 
@@ -25,10 +30,12 @@ export function Content() {
 
     client.on('historyMessage', (data) => {
       console.log('historyMessage', data);
+      setHistory(data);
     });
 
     client.on('newMessage', (data: Message) => {
       console.log('newMessage', data);
+      setNewMessage(data);
     });
 
     client.on('connect', () => {
@@ -64,10 +71,6 @@ export function Content() {
 
   return (
     <main className="">
-      <nav className="text-start bg-black text-white p-3 font-bold flex justify-between">
-        <h3 className="ms-3">liveChat</h3>
-        <h3 className="me-3">menu</h3>
-      </nav>
 
       <div className="flex">
         현재 접속자
@@ -77,28 +80,49 @@ export function Content() {
 
       <div className="flex flex-col items-center p-10">
         <div className="bg-slate-600 h-96 w-full overflow-scroll overflow-x-hidden flex flex-col p-5">
+          {history.map((data) => {
+            <OtherText />
+          })}
 
-          <div className="text w-full h-fit flex">
-            <div alt="img" className="w-1/12 h-16 bg-slate-50" />
-            {/* <Image src={myungttak} alt='img' className="w-1/12 h-16" /> */}
-            <span className="w-11/12 mx-10">aa</span>
-          </div>
-          <div className="text-end w-full h-fit flex">
-            <span className="w-11/12 mx-10">aa</span>
-            <div alt="img" className="w-1/12 h-16 bg-slate-50" />
-            {/* <Image src={janimal} alt='img' className="w-1/12 h-16" /> */}
-          </div>
+          <OtherText />
+          <MyText />
+
         </div>
         <div className="w-full flex h-20">
-          <textarea className="bg-red-200 w-full overflow-scroll overflow-x-hidden"></textarea>
-          <button className="bg-red-800 w-32">send</button>
+          <textarea
+            id="myTextArea"
+            className="bg-red-200 w-full overflow-scroll overflow-x-hidden"
+            onChange={(e) => {
+              setInputText(e.target.value);
+            }}
+            value={inputText}
+            onKeyDown={(e) => { handleKeyDown(e); }}
+          />
+
+          <button
+            id="sendBtn"
+            className="bg-red-800 w-32"
+            onClick={() => {
+              if (socket.current) {
+                socket.current.emit('message', { text: inputText });
+                setInputText('');
+              }
+            }}
+          >
+            send
+
+          </button>
         </div>
       </div>
     </main>
   );
 }
-function Send() {
-  return (
-    <div>aa</div>
-  );
+
+function handleKeyDown(event) {
+  if (event.code === 'Enter') {
+    if (!event.shiftKey) {
+      event.preventDefault();
+      document.getElementById('sendBtn')?.click();
+    }
+  }
 }

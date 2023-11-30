@@ -1,5 +1,6 @@
 import http from 'http';
 import { Server } from 'socket.io';
+/*새로운 사용자 접속 시, 접속 인원 알려주기 */
 
 interface Message {
   date: Date;
@@ -69,6 +70,7 @@ async function main() {
 
     // 새로운 메세지 전송
     socket.on('message', (data: any) => {
+      console.log(data);
       if (!data) return;
       const { text } = data;
 
@@ -93,7 +95,8 @@ async function main() {
         messages.shift();
       }
       messages.push(message);
-      socket.broadcast.emit('newMessage', message);
+      // socket.broadcast.emit('newMessage', message);
+      io.emit('newMessage', message);
     });
   });
 

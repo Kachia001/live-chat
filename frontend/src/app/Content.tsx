@@ -1,9 +1,9 @@
 'use client';
 import React, { useEffect, useRef, useState } from 'react';
 import { type Socket, io } from 'socket.io-client';
-import MyText from './component/Mytext';
-import OtherText from './component/Othertext';
-import type Message from './socket';
+import { MyText } from './component/MyText';
+import { OtherText } from './component/OtherText';
+import type { Message } from './socket';
 
 export function Content() {
   const socket = useRef<Socket>();

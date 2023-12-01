@@ -1,46 +1,43 @@
 'use client';
 import { text } from 'stream/consumers';
 import Image from 'next/image';
-import { useEffect, useRef, useState } from 'react';
+import React, { type KeyboardEventHandler, useEffect, useRef, useState } from 'react';
 import { type Socket, io } from 'socket.io-client';
 import janimal from './image/janimal.jpg';
 import myungttak from './image/myungttak.jpg';
 import MyText from './mytext';
 import OtherText from './othertext';
-
 interface Message {
   date: Date;
   nickname: string;
   text: string;
 }
-
 export function Content() {
   const socket = useRef<Socket>();
   const [inputText, setInputText] = useState('');
   const [userCount, setUserCount] = useState<number>();
-  const [history, setHistory] = useState([]);
-  const [newMessage, setNewMessage] = useState<Message[]>([]);
-  const [user, setUser] = useState();
+  const [history, setHistory] = useState<Message[]>([]);
+  const [user, setUser] = useState<string>();
   useEffect(() => {
     const client = io('http://localhost:8080');
 
-    client.on('updateUserCount', (data) => {
+    client.on('updateUserCount', (data: { count: number }) => {
       const count: number = data.count;
       console.log('updateUserCount', count);
       setUserCount(count);
     });
 
-    client.on('historyMessage', (data) => {
+    client.on('historyMessage', (data: Message[]) => {
       console.log('historyMessage', data);
       setHistory(data);
     });
 
     client.on('newMessage', (data: Message) => {
-      setNewMessage((newData) => {
-        return [...newData, data];
+      setHistory((history) => {
+        return [...history, data];
       });
     });
-    client.on('usersInformation', (data) => {
+    client.on('usersInformation', (data: { nickname: string }[]) => {
       const userNickName = data[0].nickname;
       setUser(userNickName);
     });
@@ -76,6 +73,19 @@ export function Content() {
     };
   }, []);
 
+  function scrollToEnd() {
+    if (socket.current) {
+      socket.current.emit('message', { text: inputText });
+      setInputText('');
+      setTimeout(() => {
+        const screen = document.getElementById('screen');
+        if (screen !== null) {
+          screen.scrollTop = screen.scrollHeight;
+        }
+      }, 10);
+    }
+  }
+
   return (
     <main className="">
 
@@ -91,36 +101,20 @@ export function Content() {
             if (data.nickname === user) { return (<MyText data={data} key={i} />); }
             else { return (<OtherText key={i} data={data} />); }
           })}
-          { newMessage.map((data, i) => {
-            if (data.nickname === user) { return (<MyText data={data} key={i} />); }
-            else { return (<OtherText key={i} data={data} />); }
-          })}
         </div>
         <div className="w-full flex h-20">
           <textarea
             id="myTextArea"
             className="bg-red-200 w-full overflow-scroll overflow-x-hidden"
-            onChange={(e) => {
-              setInputText(e.target.value);
-            }}
+            onChange={(e) => { setInputText(e.target.value); }}
             value={inputText}
-            onKeyDown={(e) => { handleKeyDown(e); }}
+            onKeyDown={handleKeyDown}
           />
 
           <button
             id="sendBtn"
             className="bg-red-800 w-32"
-            onClick={() => {
-              if (socket.current) {
-                socket.current.emit('message', { text: inputText });
-                setInputText('');
-                setTimeout(() => {
-                  if (document.getElementById('screen') !== null) {
-                    document.getElementById('screen').scrollTop = document.getElementById('screen').scrollHeight;
-                  }
-                }, 10);
-              }
-            }}
+            onClick={scrollToEnd}
           >
             send
 
@@ -131,7 +125,7 @@ export function Content() {
   );
 }
 
-function handleKeyDown(event) {
+function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
   if (event.code === 'Enter') {
     if (!event.shiftKey) {
       event.preventDefault();

@@ -1,23 +1,19 @@
 'use client';
-import { text } from 'stream/consumers';
-import Image from 'next/image';
-import React, { type KeyboardEventHandler, useEffect, useRef, useState } from 'react';
+import React, { type ReactNode, useEffect, useRef, useState } from 'react';
 import { type Socket, io } from 'socket.io-client';
-import janimal from './image/janimal.jpg';
-import myungttak from './image/myungttak.jpg';
 import MyText from './mytext';
 import OtherText from './othertext';
-interface Message {
-  date: Date;
-  nickname: string;
-  text: string;
-}
+import type Message from './socket';
+
 export function Content() {
   const socket = useRef<Socket>();
   const [inputText, setInputText] = useState('');
   const [userCount, setUserCount] = useState<number>();
-  const [history, setHistory] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [user, setUser] = useState<string>();
+  const screenArea = useRef<HTMLDivElement>(null);
+  const sendBtn = useRef<HTMLButtonElement>(null);
+  const textArea = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     const client = io('http://localhost:8080');
 
@@ -29,11 +25,11 @@ export function Content() {
 
     client.on('historyMessage', (data: Message[]) => {
       console.log('historyMessage', data);
-      setHistory(data);
+      setMessages(data);
     });
 
     client.on('newMessage', (data: Message) => {
-      setHistory((history) => {
+      setMessages((history) => {
         return [...history, data];
       });
     });
@@ -45,12 +41,6 @@ export function Content() {
       console.log('connected');
       client.emit('getHistoryMessage'); // 히스토리 요청
       client.emit('getUserCount'); // 총 접속유저 요청
-
-      setTimeout(() => {
-        client.emit('message', {
-          text: 'hello',
-        });
-      }, 2000);
     });
 
     client.on('duplication', () => {
@@ -73,16 +63,27 @@ export function Content() {
     };
   }, []);
 
-  function scrollToEnd() {
+  const submitScrollToEnd = () => {
     if (socket.current) {
       socket.current.emit('message', { text: inputText });
       setInputText('');
       setTimeout(() => {
-        const screen = document.getElementById('screen');
-        if (screen !== null) {
-          screen.scrollTop = screen.scrollHeight;
+        const screen = screenArea;
+        if (screen.current !== null) {
+          screen.current.scrollTop = screen.current.scrollHeight;
         }
       }, 10);
+    }
+  };
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.code === 'Enter') {
+      if (!event.shiftKey) {
+        event.preventDefault();
+        if (sendBtn.current !== null) {
+          sendBtn.current.click();
+        }
+      }
     }
   }
 
@@ -96,15 +97,15 @@ export function Content() {
       </div>
 
       <div className="flex flex-col items-center p-10">
-        <div id="screen" className="bg-slate-600 h-96 w-full overflow-scroll overflow-x-hidden flex flex-col p-5">
-          {history.map((data: Message, i) => {
-            if (data.nickname === user) { return (<MyText data={data} key={i} />); }
-            else { return (<OtherText key={i} data={data} />); }
-          })}
+        <div ref={screenArea} className="bg-slate-600 h-96 w-full overflow-scroll overflow-x-hidden flex flex-col p-5">
+          {/* displayed messages are limited to maximum 500element */}
+          {messages.slice(-500).map((data: Message, i) => data.nickname === user
+            ? <MyText key={i} data={data} />
+            : <OtherText key={i} data={data} />)}
         </div>
         <div className="w-full flex h-20">
           <textarea
-            id="myTextArea"
+            ref={textArea}
             className="bg-red-200 w-full overflow-scroll overflow-x-hidden"
             onChange={(e) => { setInputText(e.target.value); }}
             value={inputText}
@@ -112,9 +113,9 @@ export function Content() {
           />
 
           <button
-            id="sendBtn"
+            ref={sendBtn}
             className="bg-red-800 w-32"
-            onClick={scrollToEnd}
+            onClick={submitScrollToEnd}
           >
             send
 
@@ -125,11 +126,3 @@ export function Content() {
   );
 }
 
-function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
-  if (event.code === 'Enter') {
-    if (!event.shiftKey) {
-      event.preventDefault();
-      document.getElementById('sendBtn')?.click();
-    }
-  }
-}

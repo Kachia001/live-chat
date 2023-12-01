@@ -1,8 +1,4 @@
-interface Message {
-  date: Date;
-  nickname: string;
-  text: string;
-}
+import type Message from './socket';
 
 export default function MyText(props: { data: Message }) {
   return (

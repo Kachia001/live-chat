@@ -1,8 +1,4 @@
-interface Message {
-  date: Date;
-  nickname: string;
-  text: string;
-}
+import type Message from './socket';
 export default function OtherText(props: { data: Message }) {
   return (
     <div className="text w-full h-fit flex bg-slate-200">

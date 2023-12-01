@@ -1,0 +1,5 @@
+export default interface Message {
+  date: Date;
+  nickname: string;
+  text: string;
+}

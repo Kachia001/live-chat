@@ -1,10 +1,6 @@
-interface Message {
-  date: Date;
-  nickname: string;
-  text: string;
-}
+import type { Message } from '../socket';
 
-export default function MyText(props: { data: Message }) {
+export function MyText(props: { data: Message }) {
   return (
     <div className="text-end w-full h-fit flex bg-slate-200">
       <span className="w-11/12 mx-10">{props.data.text}</span>

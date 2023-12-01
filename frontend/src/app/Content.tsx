@@ -1,46 +1,45 @@
 'use client';
-import { text } from 'stream/consumers';
-import Image from 'next/image';
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { type Socket, io } from 'socket.io-client';
-import janimal from './image/janimal.jpg';
-import myungttak from './image/myungttak.jpg';
-import MyText from './mytext';
-import OtherText from './othertext';
-
-interface Message {
-  date: Date;
-  nickname: string;
-  text: string;
-}
+import { MyText } from './component/MyText';
+import { OtherText } from './component/OtherText';
+import type { Message } from './socket';
 
 export function Content() {
   const socket = useRef<Socket>();
   const [inputText, setInputText] = useState('');
   const [userCount, setUserCount] = useState<number>();
-  const [history, setHistory] = useState([]);
-  const [newMessage, setNewMessage] = useState<Message[]>([]);
-  const [user, setUser] = useState();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [user, setUser] = useState<string>();
+  const screenAreaRef = useRef<HTMLDivElement>(null);
+  const sendBtnRef = useRef<HTMLButtonElement>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     const client = io('http://localhost:8080');
 
-    client.on('updateUserCount', (data) => {
-      const count: number = data.count;
+    client.on('updateUserCount', (data: { count: number }) => {
+      const count = data.count;
       console.log('updateUserCount', count);
       setUserCount(count);
     });
 
-    client.on('historyMessage', (data) => {
+    client.on('historyMessage', (data: Message[]) => {
       console.log('historyMessage', data);
-      setHistory(data);
+      setMessages(data);
     });
 
     client.on('newMessage', (data: Message) => {
-      setNewMessage((newData) => {
-        return [...newData, data];
+      setMessages((history) => {
+        if (messages.length > 1000) {
+          setMessages(messages.slice(-500));
+          return [...history, data];
+        }
+        else {
+          return [...history, data];
+        }
       });
     });
-    client.on('usersInformation', (data) => {
+    client.on('usersInformation', (data: { nickname: string }[]) => {
       const userNickName = data[0].nickname;
       setUser(userNickName);
     });
@@ -48,12 +47,7 @@ export function Content() {
       console.log('connected');
       client.emit('getHistoryMessage'); // 히스토리 요청
       client.emit('getUserCount'); // 총 접속유저 요청
-
-      setTimeout(() => {
-        client.emit('message', {
-          text: 'hello',
-        });
-      }, 2000);
+      client.emit('getUsersInformation');
     });
 
     client.on('duplication', () => {
@@ -76,66 +70,63 @@ export function Content() {
     };
   }, []);
 
-  return (
-    <main className="">
+  const submitScrollToEnd = () => {
+    if (socket.current) {
+      socket.current.emit('message', { text: inputText });
+      setInputText('');
+      setTimeout(() => {
+        const screen = screenAreaRef;
+        if (screen.current !== null) {
+          screen.current.scrollTop = screen.current.scrollHeight;
+        }
+      }, 10);
+    }
+  };
 
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.code === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      if (sendBtnRef.current !== null) {
+        sendBtnRef.current.click();
+      }
+    }
+  };
+
+  return (
+    <>
       <div className="flex">
-        현재 접속자
+        현재 총 접속자
         {!userCount && <div>로딩중입니다.</div>}
         {userCount && <div>{userCount}</div>}
       </div>
 
       <div className="flex flex-col items-center p-10">
-        <div id="screen" className="bg-slate-600 h-96 w-full overflow-scroll overflow-x-hidden flex flex-col p-5">
-          {history.map((data: Message, i) => {
-            if (data.nickname === user) { return (<MyText data={data} key={i} />); }
-            else { return (<OtherText key={i} data={data} />); }
-          })}
-          { newMessage.map((data, i) => {
-            if (data.nickname === user) { return (<MyText data={data} key={i} />); }
-            else { return (<OtherText key={i} data={data} />); }
-          })}
+        <div ref={screenAreaRef} className="bg-slate-600 h-96 w-full overflow-scroll overflow-x-hidden flex flex-col p-5">
+          {/* displayed messages are limited to maximum 500element */}
+          {messages.slice(-500).map((data: Message, i) => data.nickname === user
+            ? <MyText key={i} data={data} />
+            : <OtherText key={i} data={data} />)}
         </div>
         <div className="w-full flex h-20">
           <textarea
-            id="myTextArea"
+            ref={textAreaRef}
             className="bg-red-200 w-full overflow-scroll overflow-x-hidden"
-            onChange={(e) => {
-              setInputText(e.target.value);
-            }}
+            onChange={(e) => { setInputText(e.target.value); }}
             value={inputText}
-            onKeyDown={(e) => { handleKeyDown(e); }}
+            onKeyDown={handleKeyDown}
           />
 
           <button
-            id="sendBtn"
+            ref={sendBtnRef}
             className="bg-red-800 w-32"
-            onClick={() => {
-              if (socket.current) {
-                socket.current.emit('message', { text: inputText });
-                setInputText('');
-                setTimeout(() => {
-                  if (document.getElementById('screen') !== null) {
-                    document.getElementById('screen').scrollTop = document.getElementById('screen').scrollHeight;
-                  }
-                }, 10);
-              }
-            }}
+            onClick={submitScrollToEnd}
           >
             send
 
           </button>
         </div>
       </div>
-    </main>
+    </>
   );
 }
 
-function handleKeyDown(event) {
-  if (event.code === 'Enter') {
-    if (!event.shiftKey) {
-      event.preventDefault();
-      document.getElementById('sendBtn')?.click();
-    }
-  }
-}

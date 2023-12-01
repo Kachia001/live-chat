@@ -1,8 +1,8 @@
 'use client';
-import React, { type ReactNode, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { type Socket, io } from 'socket.io-client';
-import MyText from './mytext';
-import OtherText from './othertext';
+import MyText from './component/Mytext';
+import OtherText from './component/Othertext';
 import type Message from './socket';
 
 export function Content() {
@@ -11,14 +11,14 @@ export function Content() {
   const [userCount, setUserCount] = useState<number>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [user, setUser] = useState<string>();
-  const screenArea = useRef<HTMLDivElement>(null);
-  const sendBtn = useRef<HTMLButtonElement>(null);
-  const textArea = useRef<HTMLTextAreaElement>(null);
+  const screenAreaRef = useRef<HTMLDivElement>(null);
+  const sendBtnRef = useRef<HTMLButtonElement>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     const client = io('http://localhost:8080');
 
     client.on('updateUserCount', (data: { count: number }) => {
-      const count: number = data.count;
+      const count = data.count;
       console.log('updateUserCount', count);
       setUserCount(count);
     });
@@ -30,7 +30,13 @@ export function Content() {
 
     client.on('newMessage', (data: Message) => {
       setMessages((history) => {
-        return [...history, data];
+        if (messages.length > 1000) {
+          setMessages(messages.slice(-500));
+          return [...history, data];
+        }
+        else {
+          return [...history, data];
+        }
       });
     });
     client.on('usersInformation', (data: { nickname: string }[]) => {
@@ -41,6 +47,7 @@ export function Content() {
       console.log('connected');
       client.emit('getHistoryMessage'); // 히스토리 요청
       client.emit('getUserCount'); // 총 접속유저 요청
+      client.emit('getUsersInformation');
     });
 
     client.on('duplication', () => {
@@ -68,7 +75,7 @@ export function Content() {
       socket.current.emit('message', { text: inputText });
       setInputText('');
       setTimeout(() => {
-        const screen = screenArea;
+        const screen = screenAreaRef;
         if (screen.current !== null) {
           screen.current.scrollTop = screen.current.scrollHeight;
         }
@@ -76,28 +83,25 @@ export function Content() {
     }
   };
 
-  function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.code === 'Enter') {
-      if (!event.shiftKey) {
-        event.preventDefault();
-        if (sendBtn.current !== null) {
-          sendBtn.current.click();
-        }
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.code === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      if (sendBtnRef.current !== null) {
+        sendBtnRef.current.click();
       }
     }
-  }
+  };
 
   return (
-    <main className="">
-
+    <>
       <div className="flex">
-        현재 접속자
+        현재 총 접속자
         {!userCount && <div>로딩중입니다.</div>}
         {userCount && <div>{userCount}</div>}
       </div>
 
       <div className="flex flex-col items-center p-10">
-        <div ref={screenArea} className="bg-slate-600 h-96 w-full overflow-scroll overflow-x-hidden flex flex-col p-5">
+        <div ref={screenAreaRef} className="bg-slate-600 h-96 w-full overflow-scroll overflow-x-hidden flex flex-col p-5">
           {/* displayed messages are limited to maximum 500element */}
           {messages.slice(-500).map((data: Message, i) => data.nickname === user
             ? <MyText key={i} data={data} />
@@ -105,7 +109,7 @@ export function Content() {
         </div>
         <div className="w-full flex h-20">
           <textarea
-            ref={textArea}
+            ref={textAreaRef}
             className="bg-red-200 w-full overflow-scroll overflow-x-hidden"
             onChange={(e) => { setInputText(e.target.value); }}
             value={inputText}
@@ -113,7 +117,7 @@ export function Content() {
           />
 
           <button
-            ref={sendBtn}
+            ref={sendBtnRef}
             className="bg-red-800 w-32"
             onClick={submitScrollToEnd}
           >
@@ -122,7 +126,7 @@ export function Content() {
           </button>
         </div>
       </div>
-    </main>
+    </>
   );
 }
 

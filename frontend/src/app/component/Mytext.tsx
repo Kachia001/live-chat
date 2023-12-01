@@ -1,4 +1,4 @@
-import type Message from './socket';
+import type Message from '../socket';
 
 export default function MyText(props: { data: Message }) {
   return (

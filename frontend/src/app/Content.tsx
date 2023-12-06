@@ -14,8 +14,20 @@ export function Content() {
   const screenAreaRef = useRef<HTMLDivElement>(null);
   const sendBtnRef = useRef<HTMLButtonElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
+
+  let process1 = new Promise((res, rej) => {
+    if (messages.length > 1000) {
+      setMessages(messages.slice(-500));
+      res(true);
+      return [...history, data];
+    }
+    else {
+      res(true);
+      return [...history, data];
+    }
+  });
   useEffect(() => {
-    const client = io('http://localhost:8080');
+    const client = io('http://26.148.236.50:8080/');
 
     client.on('updateUserCount', (data: { count: number }) => {
       const count = data.count;
@@ -26,9 +38,15 @@ export function Content() {
     client.on('historyMessage', (data: Message[]) => {
       console.log('historyMessage', data);
       setMessages(data);
+      // setTimeout(scrollToEnd, 10);
     });
 
-    client.on('newMessage', (data: Message) => {
+    client.on('newMessage', async (data: Message) => {
+      // if (screenAreaRef.current !== null) {
+      //   if ((screenAreaRef.current?.scrollHeight - screenAreaRef.current?.scrollTop) < (screenAreaRef.current?.clientHeight + 50)) {
+      //     setTimeout(scrollToEnd, 10);
+      //   }
+      // }
       setMessages((history) => {
         if (messages.length > 1000) {
           setMessages(messages.slice(-500));
@@ -38,6 +56,7 @@ export function Content() {
           return [...history, data];
         }
       });
+      // scrollToEnd();
     });
     client.on('usersInformation', (data: { nickname: string }[]) => {
       const userNickName = data[0].nickname;
@@ -74,23 +93,29 @@ export function Content() {
     if (socket.current) {
       socket.current.emit('message', { text: inputText });
       setInputText('');
-      setTimeout(() => {
-        const screen = screenAreaRef;
-        if (screen.current !== null) {
-          screen.current.scrollTop = screen.current.scrollHeight;
-        }
-      }, 10);
+      // setTimeout(scrollToEnd, 10);
+      // scrollToEnd();
     }
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.code === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      if (sendBtnRef.current !== null) {
-        sendBtnRef.current.click();
+      if ((sendBtnRef.current !== null) && !event.nativeEvent.isComposing) {
+        submitScrollToEnd();
       }
     }
   };
+
+  const scrollToEnd = () => {
+    const screen = screenAreaRef;
+    if (screen.current !== null) {
+      screen.current.scrollTop = screen.current.scrollHeight;
+    }
+  };
+  useEffect(() => {
+    scrollToEnd();
+  }, [messages]);
 
   return (
     <>
@@ -101,11 +126,14 @@ export function Content() {
       </div>
 
       <div className="flex flex-col items-center p-10">
-        <div ref={screenAreaRef} className="bg-slate-600 h-96 w-full overflow-scroll overflow-x-hidden flex flex-col p-5">
+        <div
+          ref={screenAreaRef}
+          className="bg-slate-600 h-96 w-full overflow-scroll overflow-x-hidden flex flex-col p-5"
+        >
           {/* displayed messages are limited to maximum 500element */}
-          {messages.slice(-500).map((data: Message, i) => data.nickname === user
+          {messages.slice(-500).map((data: Message, i) => (data.nickname === user
             ? <MyText key={i} data={data} />
-            : <OtherText key={i} data={data} />)}
+            : <OtherText key={i} data={data} />))}
         </div>
         <div className="w-full flex h-20">
           <textarea
